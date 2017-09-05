@@ -1,0 +1,56 @@
+<nodeDefs>
+    <!-- MagicHomeControl -->
+    <nodeDef id="magichome" nls="magichome">
+        <editors />
+        <sts />
+        <cmds>
+            <sends />
+            <accepts>
+                <cmd id="DISCOVER" />
+            </accepts>
+        </cmds>
+    </nodeDef>
+    <!-- NODE DEF from 5.0 document http://wiki.universal-devices.com/index.php?title=V50_MAIN -->
+    <!-- MagicHome Color LED -->
+    <nodeDef id="magichomeled" nls="mhledc">
+        <editors />
+        <sts>
+            <st id="ST" editor="mhpower" />
+            <st id="GV1" editor="mhledc" />
+            <st id="GV2" editor="mhledc" />
+            <st id="GV3" editor="mhledc" />
+            <st id="GV4" editor="mhstatus" />
+        </sts>
+        <cmds>
+            <sends />
+            <accepts>
+                <cmd id="DON">
+                  <p id="" editor="mhpower" optional="T" init="ST"/>
+                </cmd>
+                <cmd id="DOF" />
+                <cmd id="DFOF" />
+                <cmd id="DFON" />
+                <cmd id="BRT" />
+                <cmd id="DIM" />
+                <cmd id="QUERY" />
+                <cmd id="SET_COLOR">
+                   <p id="" editor="mhchoice" />
+                </cmd>
+                <cmd id="SETR">
+                    <p id="" editor="mhledc" init="GV1" />
+                </cmd>
+                <cmd id="SETG">
+                    <p id="" editor="mhledc" init="GV2" />
+                </cmd>
+                <cmd id="SETB">
+                    <p id="" editor="mhledc" init="GV3" />
+                </cmd>
+                <cmd id="SET_RGB">
+                    <p id="R" editor="mhledc" init="GV1" />
+                    <p id="G" editor="mhledc" init="GV2" />
+                    <p id="B" editor="mhledc" init="GV3" />
+                </cmd>
+            </accepts>
+        </cmds>
+    </nodeDef>
+</nodeDefs>

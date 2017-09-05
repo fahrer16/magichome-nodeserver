@@ -1,0 +1,41 @@
+# MagicHomeControl
+ND-magichome-NAME = MagicHome Bridge
+CMD-magichome-DISCOVER-NAME = Re-Discover LEDs
+
+# Color Bulbs
+ND-magichomeled-NAME = MagicHome LED
+ST-mhledc-NAME = MagicHome LED
+ST-mhledc-ST-NAME = Brightness
+ST-mhledc-GV1-NAME = Red
+ST-mhledc-GV2-NAME = Green
+ST-mhledc-GV3-NAME = Blue
+ST-mhledc-GV4-NAME = Connected
+CMD-mhledc-DON-NAME = On
+CMD-mhledc-DOF-NAME = Off
+CMD-mhledc-DFOF-NAME = Fast Off
+CMD-mhledc-DFON-NAME = Fast On
+CMD-mhledc-BRT-NAME = Brighten
+CMD-mhledc-DIM-NAME = Dim
+CMD-mhledc-QUERY-NAME = Query
+CMD-mhledc-SETR-NAME = Set Red
+CMD-mhledc-SETG-NAME = Set Green
+CMD-mhledc-SETB-NAME = Set Blue
+CMD-mhledc-SET_RGB-NAME = Change RGB
+CMD-mhledc-SET_COLOR-NAME = Set Color To
+COLOR_CHOICE-0 = Red
+COLOR_CHOICE-1 = Orange
+COLOR_CHOICE-2 = Yellow
+COLOR_CHOICE-3 = Green
+COLOR_CHOICE-4 = Cyan
+COLOR_CHOICE-5 = Blue
+COLOR_CHOICE-6 = Purple
+COLOR_CHOICE-7 = Pink
+COLOR_CHOICE-8 = White
+COLOR_CHOICE-9 = Cold White
+COLOR_CHOICE-10 = Warm White
+COLOR_CHOICE-11 = Gold
+
+#Generic for all Types
+CMDP-R-NAME = Red
+CMDP-G-NAME = Green
+CMDP-B-NAME = Blue

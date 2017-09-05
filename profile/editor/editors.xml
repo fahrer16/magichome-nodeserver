@@ -1,0 +1,18 @@
+<editors>
+    <!-- MagicHome Color Editor -->
+    <editor id="mhledc">
+        <range uom="100" min="0" max="255" prec="0" step="1" />
+    </editor>
+    <!-- MagicHome Brightness (power) Editor -->
+    <editor id="mhpower">
+        <range uom="51" min="0" max="100" prec="0" step="1" />
+    </editor>
+    <!-- MagicHome Color Choice Editor -->
+    <editor id="mhchoice">
+        <range uom="25" subset="0-11" nls="COLOR_CHOICE" />
+    </editor>
+    <!-- MagicHome Status Editor -->
+    <editor id="mhstatus">
+      <range uom="2" subset="0,1" />
+    </editor>
+</editors>

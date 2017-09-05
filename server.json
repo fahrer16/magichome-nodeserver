@@ -1,0 +1,18 @@
+{
+    "name": "MagicHome",
+    "docs": "http://www.zengge.com",
+    "type": "python",
+    "executable": "polyMagicHome.py",
+    "description": "Add control of MagicHome WiFi LED controllers to the ISY994.",
+    "notice": "\"MagicHome\" is trademarked., see http://www.zengge.com for more information. This Node Server is neither developed by nor endorsed by Zengge, Universal Devices, Brian Feeney, or any other company responsible for the manufacture, development, or distribution of compatible LED's/controllers.",
+    "credits": [
+        {
+            "title": "polyMagicHome: A Python library for MagicHome-compatible WiFi LED Controllers",
+            "author": "Brian Feeney",
+            "version": "0.1.1",
+            "date": "September 4, 2017",
+            "source": "https://github.com/fahrer16/magichome-nodeserver",
+            "license": "https://github.com/fahrer16/magichome-nodeserver/blob/master/LICENSE"
+        }
+    ]
+}
