@@ -140,6 +140,12 @@ class WifiLedBulb():
             mode = "preset"
         return mode
 
+    def __updatePower(self):
+        if self.__isOn:
+            self.power = int(max(self.color)/255*100)
+        else:
+            self.power = 0
+
     def refreshState(self):
         msg = bytearray([0x81, 0x8a, 0x8b])
         try:
@@ -166,10 +172,7 @@ class WifiLedBulb():
         
         if mode == "color":
             self.color = [rx[6],rx[7],rx[8]]
-            if self.__isOn:
-                self.power = int(max(self.color)/255*100)
-            else:
-                self.power = 0
+            self.__updatePower()
             color_str = utils.color_tuple_to_string((rx[6],rx[7],rx[8]))
             mode_str = "Color: {}".format(color_str)
         elif mode == "ww":
@@ -231,18 +234,21 @@ class WifiLedBulb():
 
     def turnOn(self, on=True):
         if on:
-            msg = bytearray([0x71, 0x23, 0x0f])
+            msg = bytearray([0x71, 0x23, 0x0f, 0xa3])
         else:
-            msg = bytearray([0x71, 0x24, 0x0f])
+            msg = bytearray([0x71, 0x24, 0x0f, 0xa4])
             
         self.__write(msg)
         #print "set bulb {}".format(on)
         #time.sleep(.5)
         #x = self.__readResponse(4)
         self.__isOn = on
+        self.__updatePower()
          
     def turnOff(self):
-        self.turnOn(False)
+        msg = bytearray([0x71, 0x24, 0x0f, 0xa4])
+        self.__write(msg)
+        self.power = 0
     
     def setWarmWhite(self, level, persist=True):
         if persist:
@@ -265,10 +271,13 @@ class WifiLedBulb():
         msg.append(r)
         msg.append(g)
         msg.append(b)
-        msg.append(0x00)
-        msg.append(0xf0)
-        msg.append(0x0f)
+        msg.append(0x00) #Warm White Value
+        msg.append(0x00) #Cool White Value
+        msg.append(0x0f) #FALSE (don't use white value)
         self.__write(msg)
+        self.color = [r,g,b]
+        self.power = int(max(self.color)/255*100)
+        self.__updatePower()
 
     def setPresetPattern(self, pattern, speed):
 

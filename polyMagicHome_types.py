@@ -139,7 +139,6 @@ class MagicHomeLED(Node):
                 self.logger.info('Received SetBrightness command from ISY. Changing %s brightness to: %i', self.name, value)
                 for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
                     self.set_driver(driver, self.color[ind])
-                self.set_driver('ST', self.power)
             else:
                 try:
                     self.device.turnOff()
@@ -151,6 +150,7 @@ class MagicHomeLED(Node):
             except: pass
             self.logger.info('Received SetBrightness command from ISY. No value specified, turning on %s.', self.name)
         self.updating = False
+        self.set_driver('ST', self.power)
         return True
 
     def _seton(self, **kwargs):
@@ -173,6 +173,7 @@ class MagicHomeLED(Node):
             self.device.turnOff()
         except: pass
         self.updating = False
+        self.set_driver('ST', self.power)
         return True
 
     def _apply(self, **kwargs):
