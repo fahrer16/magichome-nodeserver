@@ -64,105 +64,82 @@ class MagicHome(Node):
 class MagicHomeLED(Node):
     
     def __init__(self, parent, primary, address, name, device, manifest=None):
-        self.parent = parent
-        self.address = address
-        self.name = name
         self.device = device
+        self.name = name
+        self.address = address
         self.label = self.device.model
-        self.connected = self.device.connected
-        self.power = self.device.power
-        self.color = list(self.device.color)
-        self.tries = 0
-        self.uptime = 0
-        self.lastupdate = None
         self.updating = False
-        super(MagicHomeLED, self).__init__(parent, address, self.name, primary, manifest)
+        super(MagicHomeLED, self).__init__(parent, address, name, primary, manifest)
         self.query()
         
     def update_info(self):
-        if self.updating == True: return
         self.updating = True
         try:
             self.device.refreshState()
-            self.connected = True
-            self.power = self.device.power
-            self.color = list(self.device.color)
-            self.set_driver('GV4', self.connected)
-            for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                self.set_driver(driver, self.color[ind])
-            self.set_driver('ST', self.power)  
-            self.tries = 0
         except Exception, ex:
-            self.tries += 1
-            if self.lastupdate == None:
-                self.logger.error('Connection Error on %s initial MagicHome refreshState. %s', self.name, str(ex))
-            elif self.tries == 3:
-                self.device.disconnect() 
-                self.logger.error('%i Connection Errors to %s, attempting to close and re-open connection', self.name)
-            elif self.tries == 4:
-                self.device.connect() #The connection with these LED's seems very spotty, try reconnecting if it has been down for a while.
-            elif time.time() - self.lastupdate >= 60:
-                self.logger.error('During Query, %s wasn\'t found. Marking as offline and attempting to re-connect', self.name)
-                self.connected = False
-                self.set_driver('GV4', self.connected)
-                self.device.connect()
-                self.uptime = 0
-                self.tries = 0
-            else:
-                self.logger.error('Connection Error on %s MagicHome refreshState. This happens from time to time, normally safe to ignore. %s', self.name, str(ex))
+            self.logger.error('Connection Error on %s MagicHome refreshState. This happens from time to time, normally safe to ignore. %s', self.name, str(ex))
+            return False
         else:
+            self.update_drivers()
             self.updating = False
-            self.lastupdate = time.time()
             return True
-        self.updating = False
 
     def query(self, **kwargs):
         self.update_info()
         self.report_driver()
         return True
 
-    def _set_brightness(self, **kwargs):
+    def _st(self, **kwargs):
+        self.update_info()
+        self.report_driver()
+        return True
+
+    def _set_brightness(self, value=None, **kwargs):
         if self.updating == True: return
         self.updating = True
-        value = kwargs.get("value")
         if value is not None:
-            value = int(value / 100. * 255)
-            if value > 0:
-                current_max = max(self.color)
+            _value = int(value / 100. * 255)
+            if _value > 0:
+                current_max = float(max(self.device.color))
                 try:
-                    self.color[0] = int(self.color[0]*value/current_max) #RED
-                    self.color[1] = int(self.color[1]*value/current_max) #GREEN
-                    self.color[2] = int(self.color[2]*value/current_max) #BLUE
-                    self.device.setRGB(self.color[0],self.color[1],self.color[2])
+                    _red = int((self.device.color[0] / current_max) * _value ) #RED
+                    _green = int((self.device.color[1] / current_max) *_value) #GREEN
+                    _blue = int((self.device.color[2] / current_max) *_value) #BLUE
+                    self.device.setRGB(_red,_green,_blue)
                     self.device.turnOn()
-                except: pass
-                self.logger.info('Received SetBrightness command from ISY. Changing %s brightness to: %i', self.name, value)
-                for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                    self.set_driver(driver, self.color[ind])
+                    self.logger.info('Received SetBrightness command from ISY. Changing %s brightness to: %i', self.name, _value)
+                except Exception, ex: 
+                    self.logger.error('Error seting brightness on %s to %i. %s', self.name, _value, str(ex))
             else:
                 try:
                     self.device.turnOff()
-                except: pass
-                self.logger.info('Received SetBrightness command from ISY of 0, turning off %s.', self.name)
+                    self.power = self.device.power
+                    self.logger.info('Received SetBrightness command from ISY of 0, turning off %s.', self.name)
+                except Exception, ex: 
+                    self.logger.error('Error turning off %s (set brightness to 0). %s', self.name, str(ex))
         else:
             try:
                 self.device.turnOn()
-            except: pass
-            self.logger.info('Received SetBrightness command from ISY. No value specified, turning on %s.', self.name)
+                self.power = self.device.power
+                self.logger.info('Received SetBrightness command from ISY. No value specified, turning on %s.', self.name)
+            except Exception, ex: 
+                self.logger.error('Error turning on %s (set brightness to 100). %s', self.name, str(ex))
         self.updating = False
-        self.set_driver('ST', self.power)
+        self.update_drivers()
         return True
 
     def _seton(self, **kwargs):
         if self.updating == True: return
-        self.updating = True
-        _value = kwargs.get("value")
+        _value = kwargs.get('value')
         if _value is not None:
             self._set_brightness(value=_value)
         else:
+            self.updating = True
             try:
                 self.device.turnOn()
-            except: pass
+                self.update_drivers()
+            except Exception, ex: 
+                self.logger.error('Error turning on %s. %s', self.name, str(ex))
         self.updating = False
         return True
         
@@ -171,9 +148,14 @@ class MagicHomeLED(Node):
         self.updating = True
         try:
             self.device.turnOff()
-        except: pass
+            self.update_drivers()
+        except Exception, ex: 
+            self.logger.error('Error turning off %s. %s', self.name, str(ex))
         self.updating = False
-        self.set_driver('ST', self.power)
+        return True
+
+    def _faston(self, **kwargs):
+        _seton(value=100)
         return True
 
     def _apply(self, **kwargs):
@@ -183,108 +165,79 @@ class MagicHomeLED(Node):
     def _setcolor(self, **kwargs): 
         if self.updating == True: return True
         self.updating = True
-        if self.connected:
-            _color = int(kwargs.get('value'))
-            try:
-                #Scale the RGB values of the specified color based on the current brightness of the bulb:
-                pct_brightness = max(self.color) / 255
-                self.color[0] = int(COLORS[_color][1][0]*pct_brightness) #RED
-                self.color[1] = int(COLORS[_color][1][1]*pct_brightness) #GREEN
-                self.color[2] = int(COLORS[_color][1][2]*pct_brightness) #BLUE
-                self.device.setRGB(self.color[0],self.color[1],self.color[2])
-            except: pass
+        _color = int(kwargs.get('value'))
+        try:
+            #Scale the RGB values of the specified color based on the current brightness of the bulb:
+            pct_brightness = max(self.device.color) / 255.
+            _red = int(COLORS[_color][1][0]*pct_brightness) #RED
+            _green = int(COLORS[_color][1][1]*pct_brightness) #GREEN
+            _blue = int(COLORS[_color][1][2]*pct_brightness) #BLUE
+            self.device.setRGB(_red,_green,_blue)
+            self.update_drivers()
             self.logger.info('Received SetColor command from ISY. Changing %s color to: %s', self.name, COLORS[_color][0])
-            for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                self.set_driver(driver, self.color[ind])
-            self.set_driver('ST', self.power)
-        else: 
-            self.set_driver('GV4', self.connected)
-            self.logger.info('Received SetColor, however %s is in a disconnected state... ignoring', self.name)
+        except Exception, ex: 
+            self.logger.error('Error seting color on %s to %s. %s', self.name, str(_color), str(ex))
         self.updating = False
         return True
         
     def _setmanual(self, **kwargs): 
         if self.updating == True: return True
         self.updating = True
-        if self.connected:
-            _cmd = kwargs.get('cmd')
-            _val = int(kwargs.get('value'))
-            if _cmd == 'SETR': self.color[0] = _val
-            if _cmd == 'SETG': self.color[1] = _val
-            if _cmd == 'SETB': self.color[2] = _val
-            try:
-                self.device.setRGB(self.color[0],self.color[1],self.color[2])
-            except: pass
-            self.logger.info('Received manual change, updating the %s color to: %s', self.name, str(self.color))
-            for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                self.set_driver(driver, self.color[ind])
-            self.set_driver('ST', self.power)
-        else: 
-            self.set_driver('GV4', self.connected)
-            self.logger.info('Received manual change, however %s is in a disconnected state... ignoring', self.name)
+        _cmd = kwargs.get('cmd')
+        _val = int(kwargs.get('value'))
+        if _cmd == 'SETR': self.device.color[0] = _val
+        if _cmd == 'SETG': self.device.color[1] = _val
+        if _cmd == 'SETB': self.device.color[2] = _val
+        try:
+            self.device.setRGB(self.color[0],self.color[1],self.color[2])
+            self.update_drivers()
+            self.logger.info('Received manual change, updating %s to: %s', self.name, str(self.device.color))
+        except Exception, ex: 
+            self.logger.error('Error setting manual rgb on %s (cmd=%s, value=%s). %s', self.name, str(_cmd), str(_val), str(ex))
         self.updating = False
         return True
 
     def _setrgb(self, **kwargs):
         if self.updating == True: return True
         self.updating = True
-        if self.connected:
-            try:
-                self.color = [int(kwargs.get('R.uom100')), int(kwargs.get('G.uom100')), int(kwargs.get('B.uom100'))]
-            except TypeError:
-                self.duration = 0
-            try:
-                self.device.setRGB(self.color[0],self.color[1],self.color[2])
-            except: pass
-            self.logger.info('Received manual change, updating the LED to: %s', str(self.color))
-            for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                self.set_driver(driver, self.color[ind])
-            self.set_driver('ST', self.power)
-        else: 
-            self.set_driver('GV4', self.connected)
-            self.logger.info('Received manual change, however %s is in a disconnected state... ignoring', self.name)
+        try:
+            self.device.setRGB(int(kwargs.get('R.uom100')), int(kwargs.get('G.uom100')), int(kwargs.get('B.uom100')))
+            self.update_drivers()
+            self.logger.info('Received manual change, updating the LED to: %s', str(kwargs))
+        except Exception, ex: 
+            self.logger.error('Error setting rgb on %s to %s. %s', self.name, str(kwargs), str(ex))
         self.updating = False
         return True
 
     def _brt(self, **kwargs):
         if self.updating == True: return True
-        self.updating = True
-        if self.connected:
-            brightness = int(max(self.color) / 255 * 100)
-            new_brightness = min(100,max(0,brightness + 3))
-            self._set_brightness(value=new_brightness)
-            self.logger.info('Received brighten command, updating %s to: %i', self.name, new_brightness)
-            for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                self.set_driver(driver, self.color[ind])
-            self.set_driver('ST', self.power)
-        else:
-            self.set_driver('GV4', self.connected)
-            self.logger.info('Received manual change, however %s is in a disconnected state... ignoring', self.name)
-        self.updating = False
+        _brightness = int(max(self.device.color) / 255 * 100.)
+        _new_brightness = min(100,max(0,_brightness + 3))
+        self._set_brightness(value=_new_brightness)
+        self.logger.info('Received brighten command, updating %s to: %i', self.name, _new_brightness)
         return True
 
     def _dim(self, **kwargs):
         if self.updating == True: return True
-        self.updating = True
-        if self.connected:
-            brightness = int(max(self.color) / 255 * 100)
-            new_brightness = min(100,max(0,brightness - 3))
-            self._set_brightness(value=new_brightness)
-            self.logger.info('Received brighten command, updating %s to: %i', self.name, new_brightness)
-            for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
-                self.set_driver(driver, self.color[ind])
-            self.set_driver('ST', self.power)
-        else:
-            self.set_driver('GV4', self.connected)
-            self.logger.info('Received manual change, however %s is in a disconnected state... ignoring', self.name)
-        self.updating = False
+        _brightness = int(max(self.device.color) / 255 * 100.)
+        _new_brightness = min(100,max(0,_brightness - 3))
+        self._set_brightness(value=_new_brightness)
+        self.logger.info('Received brighten command, updating %s to: %i', self.name, _new_brightness)
+        return True
+
+    def update_drivers(self):
+        self.set_driver('GV4', self.device.connected)
+        for ind, driver in enumerate(('GV1', 'GV2', 'GV3')):
+            self.set_driver(driver, self.device.color[ind])
+        self.set_driver('ST', self.device.power)
+        #self.report_driver()
         return True
 
 
     _drivers = {'ST': [0, 51, int], 'GV1': [0, 100, int], 'GV2': [0, 100, int],
                 'GV3': [0, 100, int], 'GV4': [0, 2, int]}
 
-    _commands = {'DON': _seton, 'DFON':_seton, 'DOF': _setoff, 'DFOF': _setoff, 
+    _commands = {'DON': _seton, 'DFON':_faston, 'DOF': _setoff, 'DFOF': _setoff, 'ST': _st,
                  'QUERY': query, 'BRT': _brt, 'DIM': _dim, 'APPLY': _apply,
                  'SET_COLOR': _setcolor, 'SETR': _setmanual, 'SETG': _setmanual,
                  'SETB': _setmanual, 'SET_RGB': _setrgb}

@@ -96,7 +96,278 @@ class utils:
         if percent < 0:
             percent = 0
         return int((percent * 255)/100)
-            
+
+class PresetPattern:
+	seven_color_cross_fade =   0x25
+	red_gradual_change =       0x26
+	green_gradual_change =     0x27
+	blue_gradual_change =      0x28
+	yellow_gradual_change =    0x29
+	cyan_gradual_change =      0x2a
+	purple_gradual_change =    0x2b
+	white_gradual_change =     0x2c
+	red_green_cross_fade =     0x2d
+	red_blue_cross_fade =      0x2e
+	green_blue_cross_fade =    0x2f
+	seven_color_strobe_flash = 0x30
+	red_strobe_flash =         0x31
+	green_strobe_flash =       0x32
+	blue_stobe_flash =         0x33
+	yellow_strobe_flash =      0x34
+	cyan_strobe_flash =        0x35
+	purple_strobe_flash =      0x36
+	white_strobe_flash =       0x37
+	seven_color_jumping =      0x38
+	
+	@staticmethod
+	def valid(pattern):
+		if pattern < 0x25 or pattern > 0x38:
+			return False
+		return True
+	
+	@staticmethod
+	def valtostr(pattern):
+		for key, value in PresetPattern.__dict__.iteritems():
+			if type(value) is int and value == pattern:
+				return key.replace("_", " ").title()
+		return None
+
+class LedTimer():
+	Mo = 0x02
+	Tu = 0x04
+	We = 0x08  
+	Th = 0x10 
+	Fr = 0x20
+	Sa = 0x40 
+	Su = 0x80
+	Everyday = Mo|Tu|We|Th|Fr|Sa|Su
+	Weekdays = Mo|Tu|We|Th|Fr
+	Weekend = Sa|Su
+
+	@staticmethod
+	def dayMaskToStr(mask):
+		for key, value in LedTimer.__dict__.iteritems():
+			if type(value) is int and value == mask:
+				return key
+		return None  
+
+	def __init__(self, bytes=None):
+		if bytes is not None:
+			self.fromBytes(bytes)
+			return
+			
+		the_time = datetime.datetime.now() + datetime.timedelta(hours=1)  
+		self.setTime(the_time.hour, the_time.minute)
+		self.setDate(the_time.year, the_time.month, the_time.day)
+		self.setModeTurnOff()
+		self.setActive(False)
+		
+	def setActive(self, active=True):
+		self.active = active
+		
+	def isActive(self):
+		return self.active
+
+	def isExpired(self):
+		# if no repeat mask and datetime is in past, return True
+		if self.repeat_mask != 0:
+			return False
+		elif self.year!=0 and self.month!=0 and self.day!=0:
+			dt = datetime.datetime(self.year, self.month, self.day, self.hour, self.minute)
+			if  utils.date_has_passed(dt):
+				return True
+		return False
+		
+	def setTime(self, hour, minute):
+		self.hour = hour
+		self.minute = minute
+
+	def setDate(self, year, month, day):
+		self.year = year
+		self.month = month		
+		self.day = day
+		self.repeat_mask = 0
+
+	def setRepeatMask(self, repeat_mask):
+		self.year = 0		
+		self.month = 0		
+		self.day = 0
+		self.repeat_mask = repeat_mask
+
+	def setModeDefault(self):
+		self.mode = "default"
+		self.pattern_code = 0
+		self.turn_on = True
+		self.red = 0
+		self.green = 0
+		self.blue = 0
+		self.warmth_level = 0
+		
+	def setModePresetPattern(self, pattern, speed):
+		self.mode = "preset"
+		self.warmth_level = 0
+		self.pattern_code = pattern
+		self.delay = utils.speedToDelay(speed)
+		self.turn_on = True
+		
+	def setModeColor(self, r, g, b):
+		self.mode = "color"
+		self.warmth_level = 0
+		self.red = r
+		self.green = g
+		self.blue = b		
+		self.pattern_code = 0x61
+		self.turn_on = True
+
+	def setModeWarmWhite(self, level):
+		self.mode = "ww"
+		self.warmth_level = utils.percentToByte(level)
+		self.pattern_code = 0x61
+		self.red = 0
+		self.green = 0
+		self.blue = 0
+		self.turn_on = True
+
+	def setModeTurnOff(self):
+		self.mode = "off"
+		self.turn_on = False
+		self.pattern_code = 0
+	
+	"""
+	timer are in six 14-byte structs
+		f0 0f 08 10 10 15 00 00 25 1f 00 00 00 f0 0f
+		 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+		0: f0 when active entry/ 0f when not active
+		1: (0f=15) year when no repeat, else 0
+		2:  month when no repeat, else 0
+		3:  dayofmonth when no repeat, else 0
+		4: hour
+		5: min
+		6: 0
+		7: repeat mask, Mo=0x2,Tu=0x04, We 0x8, Th=0x10 Fr=0x20, Sa=0x40, Su=0x80
+		8:  61 for solid color or warm, or preset pattern code
+		9:  r (or delay for preset pattern)
+		10: g
+		11: b
+		12: warm white level
+		13: 0f = off, f0 = on ?
+	"""		
+	def fromBytes(self, bytes):
+		#utils.dump_bytes(bytes)
+		self.red = 0
+		self.green = 0
+		self.blue = 0		
+		if bytes[0] == 0xf0:
+			self.active = True
+		else:
+			self.active = False
+		self.year = bytes[1]+2000
+		self.month = bytes[2]
+		self.day = bytes[3]
+		self.hour = bytes[4]
+		self.minute = bytes[5]
+		self.repeat_mask = bytes[7]
+		self.pattern_code = bytes[8]
+	
+		if self.pattern_code == 0x61:
+			self.mode = "color"
+			self.red = bytes[9]
+			self.green = bytes[10]
+			self.blue = bytes[11]
+		elif self.pattern_code == 0x00:
+			self.mode ="default"
+		else:
+			self.mode = "preset"
+			self.delay = bytes[9] #same byte as red
+
+		self.warmth_level = bytes[12]
+		if self.warmth_level != 0:
+			self.mode = "ww"
+			
+		if bytes[13] == 0xf0:
+			self.turn_on = True
+		else:
+			self.turn_on = False
+			self.mode = "off"
+
+	def toBytes(self):
+		bytes = bytearray(14)
+		if not self.active:
+			bytes[0] = 0x0f
+			# quit since all other zeros is good
+			return bytes
+				
+		bytes[0] = 0xf0
+		
+		if self.year >= 2000:
+			bytes[1] =  self.year - 2000
+		else:
+			bytes[1] = self.year			
+		bytes[2] = self.month
+		bytes[3] = self.day
+		bytes[4] = self.hour
+		bytes[5] = self.minute
+		# what is 6?
+		bytes[7] = self.repeat_mask
+		
+		if not self.turn_on:
+			bytes[13] = 0x0f
+			return bytes		
+		bytes[13] = 0xf0
+		
+		bytes[8] = self.pattern_code
+		if self.mode == "preset":	
+			bytes[9] = self.delay
+			bytes[10] = 0
+			bytes[11] = 0
+		else:
+			bytes[9] = self.red
+			bytes[10] = self.green
+			bytes[11] = self.blue
+		bytes[12] = self.warmth_level
+
+		return bytes
+			
+	def __str__(self):
+		txt = ""
+		if not self.active:
+		  return "Unset"
+		
+		if self.turn_on:
+			txt += "[ON ]"
+		else:
+			txt += "[OFF]"
+
+		txt += " "
+
+		txt += "{:02}:{:02}  ".format(self.hour,self.minute)
+	
+		if self.repeat_mask == 0:
+			txt += "Once: {:04}-{:02}-{:02}".format(self.year,self.month,self.day)
+		else:
+			bits = [LedTimer.Su,LedTimer.Mo,LedTimer.Tu,LedTimer.We,LedTimer.Th,LedTimer.Fr,LedTimer.Sa]
+			for b in bits:
+				if self.repeat_mask & b:
+					txt += LedTimer.dayMaskToStr(b)
+				else:
+					txt += "--"
+			txt += "  "
+				
+		txt += "  "
+		if self.pattern_code == 0x61:
+			if self.warmth_level != 0:
+				txt += "Warm White: {}%".format(utils.byteToPercent(self.warmth_level))
+			else:
+				color_str = utils.color_tuple_to_string((self.red,self.green,self.blue))
+				txt += "Color: {}".format(color_str)
+
+		elif PresetPattern.valid(self.pattern_code):
+			pat = PresetPattern.valtostr(self.pattern_code)
+			speed = utils.delayToSpeed(self.delay)
+			txt += "{} (Speed:{}%)".format(pat, speed)
+			
+		return txt
+
 class WifiLedBulb():
     def __init__(self, ipaddr, macaddr, model="",port=5577):
         self.ipaddr = ipaddr
@@ -106,6 +377,7 @@ class WifiLedBulb():
         self.power = 0
         self.macaddr = macaddr
         self.model = model
+        self.connected = False
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect()
         self.__state_str = ""
@@ -116,8 +388,10 @@ class WifiLedBulb():
             self.socket.connect((self.ipaddr, self.port))
             self.connected = True
         except:
-            self.socket.shutdown(socket.SHUT_RDWR)
-            self.socket.close()
+            try:
+                self.socket.shutdown(socket.SHUT_RDWR)
+                self.socket.close()
+            except: pass
             self.connected = False
 
     def disconnect(self):
@@ -142,7 +416,7 @@ class WifiLedBulb():
 
     def __updatePower(self):
         if self.__isOn:
-            self.power = int(max(self.color)/255*100)
+            self.power = min(max(int(max(self.color) / 255. * 100.),0),100)
         else:
             self.power = 0
 
@@ -152,7 +426,8 @@ class WifiLedBulb():
             self.__write(msg)
             rx = self.__readResponse(14)
         except:
-            return
+            self.connect()
+            return False
 
         power_state = rx[2]
         power_str = "Unknown power state"
@@ -195,6 +470,7 @@ class WifiLedBulb():
         if pattern == 0x62:
             mode_str += " (tmp)"
         self.__state_str = "{} [{}]".format(power_str, mode_str)
+        return True
 
     def __str__(self):
         return self.__state_str
@@ -276,7 +552,6 @@ class WifiLedBulb():
         msg.append(0x0f) #FALSE (don't use white value)
         self.__write(msg)
         self.color = [r,g,b]
-        self.power = int(max(self.color)/255*100)
         self.__updatePower()
 
     def setPresetPattern(self, pattern, speed):
