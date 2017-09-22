@@ -138,6 +138,7 @@ class MagicHomeLED(Node):
             try:
                 self.device.turnOn()
                 self.update_drivers()
+                self.logger.info('Received commandto turn on %s.', self.name)
             except Exception, ex: 
                 self.logger.error('Error turning on %s. %s', self.name, str(ex))
         self.updating = False
@@ -149,6 +150,7 @@ class MagicHomeLED(Node):
         try:
             self.device.turnOff()
             self.update_drivers()
+            self.logger.info('Received commandto turn off %s.', self.name)
         except Exception, ex: 
             self.logger.error('Error turning off %s. %s', self.name, str(ex))
         self.updating = False
@@ -169,9 +171,9 @@ class MagicHomeLED(Node):
         try:
             #Scale the RGB values of the specified color based on the current brightness of the bulb:
             pct_brightness = max(self.device.color) / 255.
-            _red = int(COLORS[_color][1][0]*pct_brightness) #RED
-            _green = int(COLORS[_color][1][1]*pct_brightness) #GREEN
-            _blue = int(COLORS[_color][1][2]*pct_brightness) #BLUE
+            _red = int(COLORS[_color][1][0] * pct_brightness) #RED
+            _green = int(COLORS[_color][1][1] * pct_brightness) #GREEN
+            _blue = int(COLORS[_color][1][2] * pct_brightness) #BLUE
             self.device.setRGB(_red,_green,_blue)
             self.update_drivers()
             self.logger.info('Received SetColor command from ISY. Changing %s color to: %s', self.name, COLORS[_color][0])
@@ -211,7 +213,7 @@ class MagicHomeLED(Node):
 
     def _brt(self, **kwargs):
         if self.updating == True: return True
-        _brightness = int(max(self.device.color) / 255 * 100.)
+        _brightness = int(max(self.device.color) / 255. * 100.)
         _new_brightness = min(100,max(0,_brightness + 3))
         self._set_brightness(value=_new_brightness)
         self.logger.info('Received brighten command, updating %s to: %i', self.name, _new_brightness)
@@ -219,7 +221,7 @@ class MagicHomeLED(Node):
 
     def _dim(self, **kwargs):
         if self.updating == True: return True
-        _brightness = int(max(self.device.color) / 255 * 100.)
+        _brightness = int(max(self.device.color) / 255. * 100.)
         _new_brightness = min(100,max(0,_brightness - 3))
         self._set_brightness(value=_new_brightness)
         self.logger.info('Received brighten command, updating %s to: %i', self.name, _new_brightness)
